@@ -23,8 +23,9 @@ class ListModel {
         repository.savePeople(items)
     }
 
-    fun updateName(index: Int, newName: String) {
+    fun tryUpdateName(index: Int, newName: String): Boolean {
         items[index].name = newName
+        return true
     }
 
     fun validatePhoneNumber(number: String): Boolean = number.matches("((\\+7|7|8)+([0-9]){10})\$".toRegex())
