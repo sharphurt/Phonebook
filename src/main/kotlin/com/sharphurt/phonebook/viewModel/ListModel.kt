@@ -1,17 +1,26 @@
-package com.sharphurt.phonebook
+package com.sharphurt.phonebook.viewModel
+
+import com.sharphurt.phonebook.data.PeopleRepository
+import com.sharphurt.phonebook.domain.Person
 
 class ListModel {
     private val repository = PeopleRepository("phonebook.json")
-    val items = repository.getRepository()
+    private var mutableItems = ArrayList<Person>()
+    val items
+        get() = mutableItems
+
+    fun loadItems() {
+        mutableItems = repository.getPeople()
+    }
 
     fun add(item: Person) {
         items.add(item)
-        repository.saveRepository(items)
+        repository.savePeople(items)
     }
 
     fun delete(index: Int) {
         items.removeAt(index)
-        repository.saveRepository(items)
+        repository.savePeople(items)
     }
 
     fun updateName(index: Int, newName: String) {
