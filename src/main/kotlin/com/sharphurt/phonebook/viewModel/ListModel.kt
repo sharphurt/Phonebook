@@ -25,26 +25,29 @@ class ListModel {
 
     fun tryUpdateName(index: Int, newName: String): Boolean {
         items[index].name = newName
+        repository.savePeople(items)
         return true
     }
 
-    fun validatePhoneNumber(number: String): Boolean = number.matches("((\\+7|7|8)+([0-9]){10})\$".toRegex())
+    fun validatePhoneNumber(number: String): Boolean =
+        number.matches("^([+]?[\\s0-9]+)?(\\d{3}|[(]?[0-9]+[)])?([-]?[\\s]?[0-9])+$".toRegex())
 
     fun tryUpdatePhoneNumber(index: Int, number: String): Boolean {
         if (!validatePhoneNumber(number))
             return false
         items[index].phoneNumber = number
+        repository.savePeople(items)
         return true
     }
 
     fun validateEmail(email: String): Boolean =
-        email.matches("^([a-zA-Z0-9_\\-.]+)@([a-zA-Z0-9_\\-.]+)\\.([a-zA-Z]{2,5})\$".toRegex())
+        email.matches("(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+\$)".toRegex())
 
     fun tryUpdateEmail(index: Int, email: String): Boolean {
         if (!validateEmail(email))
             return false
         items[index].email = email
+        repository.savePeople(items)
         return true
-
     }
 }

@@ -27,7 +27,10 @@ class ViewControllerTask {
     }
 
     fun run() {
-        printList(model.items)
+        if (model.items.isNotEmpty())
+            printList(model.items)
+        else
+            println("List is empty. Add new people. Type \"add\" command =)")
         while (true) {
             prepareForCommand()
             val result = awaitForCommand()
@@ -75,10 +78,7 @@ class ViewControllerTask {
             if (it.value(input))
                 inputArgs.add(input)
             else
-                return ProcessResponse(
-                    false,
-                    errorMessage = "Parameter \"${it.key}\" is incorrect. Adding process was broken. Try again"
-                )
+                return ProcessResponse(false, errorMessage = "Parameter \"${it.key}\" is incorrect. Try again")
         }
         model.add(Person(model.items.size + 1, inputArgs[0], inputArgs[1], inputArgs[2]))
         return ProcessResponse(true)
@@ -107,7 +107,7 @@ class ViewControllerTask {
         if (commandArgs.size <= 2)
             return ProcessResponse(false, errorMessage = "Wrong command argument")
         if (!validators.containsKey(commandArgs[1]) || commandArgs[1].isEmpty())
-            return ProcessResponse(false, "Such the field does not exist")
+            return ProcessResponse(false, errorMessage = "Such the field does not exist")
 
         val indexToUpdate = (commandArgs[2].toIntOrNull()?.minus(1)
             ?: return ProcessResponse(false, errorMessage = "Wrong command argument"))
@@ -120,8 +120,9 @@ class ViewControllerTask {
         if (validators[commandArgs[1]]?.invoke(input)!!)
             updateResult = updaters[commandArgs[1]]?.invoke(indexToUpdate, input)!!
 
-        return if (updateResult) ProcessResponse(true) else ProcessResponse(false,
-            errorMessage = "Failed to update value")
-
+        return if (updateResult) ProcessResponse(true) else ProcessResponse(
+            false,
+            errorMessage = "Failed to update value"
+        )
     }
 }
