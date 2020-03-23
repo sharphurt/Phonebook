@@ -7,5 +7,7 @@ enum class Commands(val command: String) {
     CLEAR("clear"),
     UPDATE("update"),
     SEE("see"),
-    EXIT("exit")
+    EXIT("exit"),
+    BREAK("\\break"),
+    YES("yes")
 }

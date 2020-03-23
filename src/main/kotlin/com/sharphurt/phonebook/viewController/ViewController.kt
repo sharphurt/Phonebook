@@ -2,13 +2,17 @@ package com.sharphurt.phonebook.viewController
 
 import com.sharphurt.phonebook.enums.Commands
 import com.sharphurt.phonebook.domain.Person
+import com.sharphurt.phonebook.localization.RussianLanguage
 import com.sharphurt.phonebook.response.ProcessResponse
 import com.sharphurt.phonebook.viewModel.ListModel
+import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.system.exitProcess
 
-class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String, private val lineStarting: String) {
+class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String) {
     private val model = ListModel()
+    private val lang = RussianLanguage()
+    private val formatter = Formatter()
     private val validators: Map<String, (String) -> Boolean> = mapOf(
         "name" to { _: String -> true },
         "phone" to { number: String -> model.validatePhoneNumber(number) },
@@ -26,16 +30,19 @@ class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String
     }
 
     fun run() {
+        writeFunc(lang.hello)
         printList(model.items)
         while (true) {
             prepareForCommand()
             val result = awaitForCommand()
             if (result.isSuccess) {
                 val executionResult = tryExecuteCommand(result.processResult)
-                if (executionResult.isSuccess)
-                    writeFunc("Success\n${if (executionResult.processResult != "") executionResult.processResult else ""}")
-                else
-                    writeFunc("${executionResult.errorMessage}\n")
+                if (executionResult.isSuccess) {
+                    writeFunc(lang.success)
+                    if (executionResult.processResult != "")
+                        writeFunc(executionResult.processResult)
+                } else
+                    writeFunc(executionResult.errorMessage)
             }
         }
     }
@@ -43,14 +50,14 @@ class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String
     private fun printList(list: ArrayList<Person>) {
         if (model.items.isNotEmpty())
             list.forEachIndexed { index, it ->
-            writeFunc("${index + 1}: ${it.name} - ${it.phoneNumber}\n   Email: ${it.email}\n")
-        }
+                writeFunc(lang.personInformation.format(index + 1, it.name, it.phoneNumber, it.email))
+            }
         else
-            writeFunc("List is empty. Type \"add\" command to add new people =)\n")
+            writeFunc(lang.emptyList)
     }
 
     private fun prepareForCommand() {
-        writeFunc("Type your command here: \n$lineStarting")
+        writeFunc(lang.commandInvitation)
     }
 
     private fun awaitForCommand(): ProcessResponse = ProcessResponse(true, processResult = readFunc())
@@ -65,21 +72,21 @@ class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String
             Commands.CLEAR.command -> clearProcess()
             Commands.UPDATE.command -> updateProcess(commandArgs)
             Commands.EXIT.command -> exitProcess(0)
-            else -> ProcessResponse(false, errorMessage = "Incorrect command")
+            else -> ProcessResponse(false, errorMessage = lang.incorrectCommand)
         }
     }
 
     private fun addProcess(): ProcessResponse {
         val inputArgs = arrayListOf<String>()
         validators.forEach {
-            writeFunc("Enter ${it.key}:\n$lineStarting")
+            writeFunc(lang.enterNew.format(it.key))
             val input = readFunc()
-            if (input == "\\break")
-                return ProcessResponse(false, errorMessage = "Process was broken")
+            if (input == Commands.BREAK.command)
+                return ProcessResponse(false, errorMessage = lang.processBroken)
             if (it.value(input))
                 inputArgs.add(input)
             else
-                return ProcessResponse(false, errorMessage = "Parameter \"${it.key}\" is incorrect. Try again")
+                return ProcessResponse(false, errorMessage = lang.incorrectParameter.format(it.key))
         }
         model.add(Person(inputArgs[0], inputArgs[1], inputArgs[2]))
         return ProcessResponse(true)
@@ -87,26 +94,26 @@ class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String
 
     private fun removeProcess(commandArgs: List<String>): ProcessResponse {
         if (commandArgs.size <= 1)
-            return ProcessResponse(false, errorMessage = "Wrong command argument")
+            return ProcessResponse(false, errorMessage = lang.wrongArgument)
 
         val indexToRemove = (commandArgs[1].toIntOrNull()?.minus(1)
-            ?: return ProcessResponse(false, errorMessage = "Wrong command argument"))
+            ?: return ProcessResponse(false, errorMessage = lang.wrongArgument))
 
         if (indexToRemove < 0 || indexToRemove >= model.items.size)
-            return ProcessResponse(false, errorMessage = "Such the contact does not exist")
+            return ProcessResponse(false, errorMessage = lang.contactNotExist)
 
         model.delete(indexToRemove)
         return ProcessResponse(true)
     }
 
     private fun clearProcess(): ProcessResponse {
-        writeFunc("Are you sure you want to clear your contact list? Enter \"Yes\" to confirm your action.\n$lineStarting")
+        writeFunc(lang.clearWarningMessage)
         val input = readFunc()
-        return if (input == "yes") {
+        return if (input == Commands.YES.command) {
             model.clear()
             ProcessResponse(true)
         } else
-            ProcessResponse(false, errorMessage = "Process was broken")
+            ProcessResponse(false, errorMessage = lang.processBroken)
     }
 
     private fun seeProcess(): ProcessResponse {
@@ -116,23 +123,23 @@ class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String
 
     private fun updateProcess(commandArgs: List<String>): ProcessResponse {
         if (commandArgs.size <= 2)
-            return ProcessResponse(false, errorMessage = "Wrong command argument")
+            return ProcessResponse(false, errorMessage = lang.wrongArgument)
         if (!validators.containsKey(commandArgs[1]) || commandArgs[1].isEmpty())
-            return ProcessResponse(false, errorMessage = "Such the field does not exist")
+            return ProcessResponse(false, errorMessage = lang.contactNotExist)
 
         val indexToUpdate = (commandArgs[2].toIntOrNull()?.minus(1)
-            ?: return ProcessResponse(false, errorMessage = "Wrong command argument"))
+            ?: return ProcessResponse(false, errorMessage = lang.wrongArgument))
         if (indexToUpdate < 0 || indexToUpdate >= model.items.size)
-            return ProcessResponse(false, errorMessage = "Such the contact does not exist")
+            return ProcessResponse(false, errorMessage = lang.contactNotExist)
 
-        writeFunc("Enter new ${commandArgs[1]}:\n$lineStarting")
+        writeFunc(lang.enterNew.format(commandArgs[1]))
         val input = readFunc()
         var updateResult = false
         if (validators[commandArgs[1]]?.invoke(input)!!)
             updateResult = updaters[commandArgs[1]]?.invoke(indexToUpdate, input)!!
 
         return if (updateResult) ProcessResponse(true) else ProcessResponse(
-            false, errorMessage = "Failed to update value"
+            false, errorMessage = lang.updateFailed
         )
     }
 }
