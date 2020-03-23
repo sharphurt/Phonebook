@@ -7,8 +7,7 @@ import com.sharphurt.phonebook.viewModel.ListModel
 import kotlin.collections.ArrayList
 import kotlin.system.exitProcess
 
-class ViewControllerTask {
-    private val lineStartString = "> "
+class ViewController(val writeFunc: (String) -> Unit, val readFunc: () -> String, private val lineStarting: String) {
     private val model = ListModel()
     private val validators: Map<String, (String) -> Boolean> = mapOf(
         "name" to { _: String -> true },
@@ -27,60 +26,62 @@ class ViewControllerTask {
     }
 
     fun run() {
-        if (model.items.isNotEmpty())
-            printList(model.items)
-        else
-            println("List is empty. Add new people. Type \"add\" command =)")
+        printList(model.items)
         while (true) {
             prepareForCommand()
             val result = awaitForCommand()
             if (result.isSuccess) {
                 val executionResult = tryExecuteCommand(result.processResult)
                 if (executionResult.isSuccess)
-                    println("Success")
+                    writeFunc("Success\n${if (executionResult.processResult != "") executionResult.processResult else ""}")
                 else
-                    println(executionResult.errorMessage)
+                    writeFunc("${executionResult.errorMessage}\n")
             }
         }
     }
 
     private fun printList(list: ArrayList<Person>) {
-        list.forEach { println("${it.id}: ${it.name} - ${it.phoneNumber}\n   Email: ${it.email}\n") }
+        if (model.items.isNotEmpty())
+            list.forEachIndexed { index, it ->
+            writeFunc("${index + 1}: ${it.name} - ${it.phoneNumber}\n   Email: ${it.email}\n")
+        }
+        else
+            writeFunc("List is empty. Type \"add\" command to add new people =)\n")
     }
 
     private fun prepareForCommand() {
-        print("Type your command here: \n$lineStartString")
+        writeFunc("Type your command here: \n$lineStarting")
     }
 
-    private fun awaitForCommand(): ProcessResponse =
-        ProcessResponse(true, processResult = readLine() ?: "")
+    private fun awaitForCommand(): ProcessResponse = ProcessResponse(true, processResult = readFunc())
 
     private fun tryExecuteCommand(command: String): ProcessResponse {
-        val commandArgs = command.toLowerCase().trimStart().split(" ")
+        val commandArgs = command.toLowerCase().split(" ")
         return when (commandArgs[0]) {
             Commands.SEE.command -> seeProcess()
             Commands.ADD.command -> addProcess()
             Commands.REMOVE.command -> removeProcess(commandArgs)
+            Commands.DELETE.command -> removeProcess(commandArgs)
+            Commands.CLEAR.command -> clearProcess()
             Commands.UPDATE.command -> updateProcess(commandArgs)
             Commands.EXIT.command -> exitProcess(0)
-            else -> ProcessResponse(
-                false,
-                errorMessage = "Incorrect command"
-            )
+            else -> ProcessResponse(false, errorMessage = "Incorrect command")
         }
     }
 
     private fun addProcess(): ProcessResponse {
         val inputArgs = arrayListOf<String>()
         validators.forEach {
-            print("Enter ${it.key}:\n$lineStartString")
-            val input = readLine() ?: ""
+            writeFunc("Enter ${it.key}:\n$lineStarting")
+            val input = readFunc()
+            if (input == "\\break")
+                return ProcessResponse(false, errorMessage = "Process was broken")
             if (it.value(input))
                 inputArgs.add(input)
             else
                 return ProcessResponse(false, errorMessage = "Parameter \"${it.key}\" is incorrect. Try again")
         }
-        model.add(Person(model.items.size + 1, inputArgs[0], inputArgs[1], inputArgs[2]))
+        model.add(Person(inputArgs[0], inputArgs[1], inputArgs[2]))
         return ProcessResponse(true)
     }
 
@@ -96,6 +97,16 @@ class ViewControllerTask {
 
         model.delete(indexToRemove)
         return ProcessResponse(true)
+    }
+
+    private fun clearProcess(): ProcessResponse {
+        writeFunc("Are you sure you want to clear your contact list? Enter \"Yes\" to confirm your action.\n$lineStarting")
+        val input = readFunc()
+        return if (input == "yes") {
+            model.clear()
+            ProcessResponse(true)
+        } else
+            ProcessResponse(false, errorMessage = "Process was broken")
     }
 
     private fun seeProcess(): ProcessResponse {
@@ -114,15 +125,14 @@ class ViewControllerTask {
         if (indexToUpdate < 0 || indexToUpdate >= model.items.size)
             return ProcessResponse(false, errorMessage = "Such the contact does not exist")
 
-        print("Enter new ${commandArgs[1]}:\n$lineStartString")
-        val input = readLine() ?: ""
+        writeFunc("Enter new ${commandArgs[1]}:\n$lineStarting")
+        val input = readFunc()
         var updateResult = false
         if (validators[commandArgs[1]]?.invoke(input)!!)
             updateResult = updaters[commandArgs[1]]?.invoke(indexToUpdate, input)!!
 
         return if (updateResult) ProcessResponse(true) else ProcessResponse(
-            false,
-            errorMessage = "Failed to update value"
+            false, errorMessage = "Failed to update value"
         )
     }
 }

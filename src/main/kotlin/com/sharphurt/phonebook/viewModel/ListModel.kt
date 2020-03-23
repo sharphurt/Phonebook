@@ -23,6 +23,11 @@ class ListModel {
         repository.savePeople(items)
     }
 
+    fun clear() {
+        items.clear()
+        repository.savePeople(items)
+    }
+
     fun tryUpdateName(index: Int, newName: String): Boolean {
         items[index].name = newName
         repository.savePeople(items)
